@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Home</title>
+</head>
+<body>
+    <h1>Welcome {{ request.user.first_name }}!</h1>
+    <p>You are logged in with Google.</p>
+    <a href="{% url 'sim:sign_out' %}">Logout</a>
+</body>
+</html>
