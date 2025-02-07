@@ -12,7 +12,7 @@ from .models import User
 @csrf_exempt
 def sign_in(request):
     if request.user.is_authenticated:
-        redirect("chat:index")
+        redirect("chat:create_event")
 
     context = {
         "google_client_id" : settings.GOOGLE_OAUTH_CLIENT_ID
@@ -46,7 +46,7 @@ def auth_receiver(request):
         )
 
         login(request, user)
-        return redirect("chat:index")
+        return redirect("chat:create_event")
 
 
     except ValueError:

@@ -18,6 +18,17 @@ load_dotenv()
 
 
 GOOGLE_OAUTH_CLIENT_ID = os.environ.get('GOOGLE_OAUTH_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
+GOOGLE_CALENDAR_CREDENTIALS = {
+    "web": {
+        "client_id": os.getenv('GOOGLE_OAUTH_CLIENT_ID'),
+        "client_secret": os.getenv('GOOGLE_CLIENT_SECRET'),
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "redirect_uris": [os.getenv('GOOGLE_REDIRECT_URI', 'http://localhost:8000/chat/google/callback/')]
+    }
+}
 if not GOOGLE_OAUTH_CLIENT_ID:
     raise ValueError(
         'GOOGLE_OAUTH_CLIENT_ID is missing.' 
@@ -147,3 +158,10 @@ LOGIN_REDIRECT_URL = '/chat/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
 AUTH_USER_MODEL = 'sim.User'
+
+GOOGLE_CALENDAR_SCOPES = [
+    'https://www.googleapis.com/auth/calendar',
+    'openid',
+    'https://www.googleapis.com/auth/userinfo.email',
+    'https://www.googleapis.com/auth/userinfo.profile'
+]
