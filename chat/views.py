@@ -1,116 +1,79 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
-from google_auth_oauthlib.flow import Flow
+from django.http import JsonResponse
 from django.conf import settings
-import os
+from sim.views import get_calendar_service
+from datetime import datetime, timedelta
 
-from .models import GoogleCredentials
-
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
-
-from .forms import CalendarEventForm
-from .models import CalendarEvent
+from .models import Event
 
 @login_required
 def create_event(request):
     if request.method == 'POST':
-        form = CalendarEventForm(request.POST)
-        if form.is_valid():
-            # Save local event
-            event = form.save(commit=False)
-            event.user = request.user
-            event.save()
+        service = get_calendar_service(request.user)
 
-            # Create Google Calendar event
-            try:
-                credentials = get_google_credentials(request.user)
-                service = build('calendar', 'v3', credentials=credentials)
-
-                event = {
-                    'summary': form.cleaned_data['title'],
-                    'description': form.cleaned_data['description'],
-                    'start': {
-                        'date': form.cleaned_data['date'].isoformat(),
-                        'timeZone': 'UTC',
-                    },
-                    'end': {
-                        'date': form.cleaned_data['date'].isoformat(),
-                        'timeZone': 'UTC',
-                    },
-                }
-
-                created_event = service.events().insert(calendarId='primary', body=event).execute()
-                
-                # Optionally, you could store the Google Calendar event ID
-                return redirect('chat:event_list')
-            except Exception as e:
-                # Handle API errors
-                form.add_error(None, f"Google Calendar error: {str(e)}")
-    else:
-        form = CalendarEventForm()
-
-    return render(request, 'chat/create_event.html', {'form': form})
+        start_time = datetime.fromisoformat(request.POST.get('start_time')).isoformat()
+        end_time = datetime.fromisoformat(request.POST.get('end_time')).isoformat()
+        
+        event = {
+            'summary': request.POST.get('summary'),
+            'description': request.POST.get('description'),
+            'start': {
+                'dateTime': start_time,
+                'timeZone': 'UTC',
+            },
+            'end': {
+                'dateTime': end_time,
+                'timeZone': 'UTC',
+            }
+        }
+        
+        try:
+            event = service.events().insert(calendarId='primary', body=event).execute()
+            Event.objects.create(
+                user=request.user,
+                google_event_id=event['id'],
+                summary=event['summary'],
+                description=event['description'],
+                start_time=request.POST.get('start_time'),
+                end_time=request.POST.get('end_time')
+            )
+            return JsonResponse({'success': True, 'eventId': event['id']})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    
+    return render(request, 'chat/create_event.html')
 
 @login_required
 def event_list(request):
-    events = CalendarEvent.objects.filter(user=request.user).order_by('-date')
-    return render(request, 'chat/event_list.html', {'events': events})
-
-def google_auth_start(request):
-    flow = get_google_auth_flow()
-    authorization_url, state = flow.authorization_url(
-        access_type='offline',
-        prompt='consent',
-        include_granted_scopes='true'
-    )
-    request.session['google_auth_state'] = state
-    return redirect(authorization_url)
-
-def google_auth_callback(request):
-    state = request.session.get('google_auth_state')
-    flow = get_google_auth_flow()
-    flow.fetch_token(authorization_response=request.build_absolute_uri())
-
-    credentials = flow.credentials
+    service = get_calendar_service(request.user)
     
-    # Store credentials (implement secure storage method)
-    save_google_credentials(request.user, credentials)
-
-    return redirect('chat:create_event')
-
-def get_google_auth_flow():
-    return Flow.from_client_config(
-        client_config=settings.GOOGLE_CALENDAR_CREDENTIALS,
-        scopes=settings.GOOGLE_CALENDAR_SCOPES,
-        redirect_uri=settings.GOOGLE_CALENDAR_CREDENTIALS['web']['redirect_uris'][0]
-    )
-
-def save_google_credentials(user, credentials):
-    google_creds, _ = GoogleCredentials.objects.get_or_create(user=user)
-    google_creds.token = credentials.token
-    google_creds.token_uri = credentials.token_uri
-    google_creds.client_id = credentials.client_id
-    google_creds.client_secret = credentials.client_secret
-    google_creds.scopes = ",".join(credentials.scopes)
-
-    # Store refresh_token only if available
-    if credentials.refresh_token:
-        google_creds.refresh_token = credentials.refresh_token
-
-    google_creds.save()
-
-def get_google_credentials(user):
+    # Get events for next 7 days
+    now = datetime.utcnow().isoformat() + 'Z'  # 'Z' indicates UTC time
+    
     try:
-        google_creds = GoogleCredentials.objects.get(user=user)
-        return Credentials(
-            token=google_creds.token,
-            refresh_token=google_creds.refresh_token,
-            token_uri=google_creds.token_uri,
-            client_id=google_creds.client_id,
-            client_secret=google_creds.client_secret,
-            scopes=google_creds.scopes.split(","),
-        )
-    except GoogleCredentials.DoesNotExist:
-        return None
+        events_result = service.events().list(
+            calendarId='primary',
+            timeMin=now,
+            maxResults=10,
+            singleEvents=True,
+            orderBy='startTime'
+        ).execute()
+        events = events_result.get('items', [])
+        
+        # Process events to ensure consistent datetime format
+        processed_events = []
+        for event in events:
+            processed_event = {
+                'summary': event.get('summary', 'No Title'),
+                'description': event.get('description', ''),
+                'start_time': event['start'].get('dateTime', event['start'].get('date', '')),
+                'end_time': event['end'].get('dateTime', event['end'].get('date', '')),
+                'id': event['id']
+            }
+            processed_events.append(processed_event)
+            
+        return render(request, 'chat/event_list.html', {'events': processed_events})
+    except Exception as e:
+        return render(request, 'chat/event_list.html', {'error': str(e)})
+    

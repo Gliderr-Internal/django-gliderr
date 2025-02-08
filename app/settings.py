@@ -26,7 +26,7 @@ GOOGLE_CALENDAR_CREDENTIALS = {
         "auth_uri": "https://accounts.google.com/o/oauth2/auth",
         "token_uri": "https://oauth2.googleapis.com/token",
         "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-        "redirect_uris": [os.getenv('GOOGLE_REDIRECT_URI', 'http://localhost:8000/chat/google/callback/')]
+        "redirect_uris": [os.getenv('GOOGLE_REDIRECT_URI', 'http://localhost:8000/auth-receiver/')]
     }
 }
 if not GOOGLE_OAUTH_CLIENT_ID:
@@ -159,7 +159,7 @@ LOGOUT_REDIRECT_URL = '/accounts/login/'
 
 AUTH_USER_MODEL = 'sim.User'
 
-GOOGLE_CALENDAR_SCOPES = [
+GOOGLE_OAUTH_SCOPES = [
     'https://www.googleapis.com/auth/calendar',
     'openid',
     'https://www.googleapis.com/auth/userinfo.email',
