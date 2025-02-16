@@ -1,8 +1,7 @@
 import os
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
-from django.http import HttpResponse
-from django.shortcuts import render, redirect
+from django.shortcuts import redirect
 from django.contrib.auth import login, logout
 from django.views.decorators.csrf import csrf_exempt
 from google.oauth2 import id_token
