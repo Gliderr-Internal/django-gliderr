@@ -62,6 +62,7 @@ ALLOWED_HOSTS = []
 INSTALLED_APPS = [
     'sim',
     'chat',
+    'task',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -153,9 +154,9 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-LOGIN_URL = '/accounts/login/'
-LOGIN_REDIRECT_URL = '/chat/'
-LOGOUT_REDIRECT_URL = '/accounts/login/'
+LOGIN_URL = '/accounts/signin/'
+LOGIN_REDIRECT_URL = '/task/'
+LOGOUT_REDIRECT_URL = '/accounts/signin/'
 
 AUTH_USER_MODEL = 'sim.User'
 
